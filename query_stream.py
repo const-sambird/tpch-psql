@@ -1,58 +1,117 @@
-import psycopg
-from multiprocessing import Process
+import logging
+import time
+from typing import Literal
+from multiprocessing import Process, Queue
 from connection import Connection
 from replica import Replica
 from refresh_pair import RefreshPair
 
 class QueryStream:
-    def __init__(self, replicas: list[Replica], queries: list[str], routes: list[int], order: list[int], rf1_data, rf2_data):
+    def __init__(self, num: int, replicas: list[Replica], queries: list[str], routes: list[int], order: list[int], rf1_data, rf2_data, timer_queue: Queue):
         '''
         Represents a single query stream for the TPC-H benchmark.
 
+        :param num: which query stream is this?
         :param replicas: the database replicas in this (distributed) DBMS
         :param queries: the TPC-H queries, in canonical order (1-22)
         :param routes: which replica each query ought to be routed to
         :param order: the order in which we should execute the queries in this stream (from appendix A of the TPC-H spec)
         :param rf1_data: data for the first refresh function (see generator for spec)
         :param rf2_data: data for the second refresh function (see generator for spec)
+        :param timer_queue: the queue to put the timing data in back to the main process
         '''
+        self.num = num
         self.replicas = replicas
         self.connections = [Connection(replica) for replica in replicas]
         self.cursors = [c.conn().cursor() for c in self.connections]
         self.refresh_pairs = [RefreshPair(rf1_data, rf2_data, replica) for replica in replicas]
 
-        # here, a potentially misguided attempt to reorder the queries for this stream in advance
-        # does this help with data locality? who knows it probably doesn't matter that much
-        self.queries = [queries[i] for i in order]
-        self.routes = [routes[i] for i in order]
+        self.queries = queries
+        self.routes = routes
+        self.order = order
+
+        # we need to pass timing intervals, both back to the main process
+        # and from our own refresh stream subprocesses we spawn
+        self.timer_queue = timer_queue
+        self.refresh_time_queue = Queue()
+        self.start_time = None
+        self.query_times = [None for _ in range(22)]
+        self.refresh_times = [None, None]
+        self.end_time = None
+        self.mode = None
     
-    def run(self):
+    def run_power(self):
         '''
-        Run this query stream.
+        Run this query stream in POWER TEST mode.
         '''
+        self.mode = 'power'
         self._run_refresh_function_1()
         self._run_query_set()
         self._run_refresh_function_2()
 
-        self._cleanup()
+        self._finalise()
+    
+    def run_throughput(self):
+        '''
+        Run this query stream in THROUGHPUT TEST mode (don't execute the refresh functions -- they'll be run by a separate stream).
+        '''
+        self.mode = 'throughput'
+        self._run_query_set()
+        
+        self._finalise()
+    
+    def run_refresh(self):
+        '''
+        Run REFRESH STREAMS only.
+        '''
+        self.mode = 'refresh'
+        self._run_refresh_function_1()
+        self._run_refresh_function_2()
+
+        self._finalise()
 
     def _run_query_set(self):
         for i in range(22):
-            replica = self.routes[i]
-            self.cursors[replica].execute(self.queries[i])
+            execute = self.order[i]
+            replica = self.routes[execute]
+            tic = time.time()
+            self.cursors[replica].execute(self.queries[execute])
+            toc = time.time()
+            logging.debug(f'QS{self.num}:Q{execute} : {round(toc - tic, 2)}s')
+            self.query_times[execute] = toc - tic
+
     
     def _run_refresh_function_1(self):
-        processes = [Process(target=r.run_refresh_function_1) for r in self.refresh_pairs]
+        processes = [Process(target=r.run_refresh_function_1, args=(self.refresh_time_queue,)) for r in self.refresh_pairs]
         [p.start() for p in processes]
         [p.join() for p in processes]
+        times = [self.refresh_time_queue.get() for _ in processes]
+        start_time = min([time['start'] for time in times])
+        end_time = max([time['end'] for time in times])
+        logging.debug(f'QS{self.num}:RF1 : {round(end_time - start_time, 2)}s')
+        self.start_time = start_time
+        self.refresh_times[0] = end_time - start_time
 
     def _run_refresh_function_2(self):
-        processes = [Process(target=r.run_refresh_function_2) for r in self.refresh_pairs]
+        processes = [Process(target=r.run_refresh_function_2, args=(self.refresh_time_queue,)) for r in self.refresh_pairs]
         [p.start() for p in processes]
         [p.join() for p in processes]
+        times = [self.refresh_time_queue.get() for _ in processes]
+        start_time = min([time['start'] for time in times])
+        end_time = max([time['end'] for time in times])
+        logging.debug(f'QS{self.num}:RF2 : {round(end_time - start_time, 2)}s')
+        self.end_time = end_time
+        self.refresh_times[1] = end_time - start_time
     
-    def _cleanup(self):
+    def _finalise(self):
         for cursor in self.cursors:
             cursor.close()
         for connection in self.connections:
             connection.close()
+        self.timer_queue.put({
+            'mode': self.mode,
+            'start': self.start_time,
+            'end': self.end_time,
+            'qi': self.query_times,
+            'ri': self.refresh_times
+        })

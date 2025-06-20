@@ -1,3 +1,4 @@
+import time
 from connection import Connection
 from replica import Replica
 
@@ -29,18 +30,26 @@ class RefreshPair:
         
         return queries
     
-    def run_refresh_function_1(self):
+    def run_refresh_function_1(self, timer_queue):
         connection = Connection(self.replica)
+        start_time = None
         with connection.conn().cursor() as cur:
+            start_time = time.time()
             for orderkey in self.rf1_data:
                 cur.execute(orderkey['order'])
                 for lineitem in orderkey['lineitems']:
                     cur.execute(lineitem)
+        end_time = time.time()
+        timer_queue.put({'start': start_time, 'end': end_time})
         connection.close()
     
-    def run_refresh_function_2(self):
+    def run_refresh_function_2(self, timer_queue):
         connection = Connection(self.replica)
+        start_time = None
         with connection.conn().cursor() as cur:
+            start_time = time.time()
             for query in self.rf2_data:
                 cur.execute(query)
+        end_time = time.time()
+        timer_queue.put({'start': start_time, 'end': end_time})
         connection.close()

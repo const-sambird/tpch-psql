@@ -138,4 +138,14 @@ if __name__ == '__main__':
     benchmark.run_power_test()
     benchmark.run_throughput_test()
 
-    # TODO: get timings and display QphH@Size
+    qphh, power, throughput = benchmark.get_results()
+
+    logging.info('=' * 30)
+    logging.info('TPC-H Performance Benchmark Results')
+    logging.info('')
+    logging.info(f'Power@Size       = {round(power, 3)}')
+    logging.info(f'Throughput@Size  = {round(throughput, 3)}')
+    logging.info(f'QphH@Size        = {round(qphh, 3)}')
+    logging.info('')
+    logging.info(f'Scale factor: {args.scale_factor}')
+    logging.info('=' * 30)
