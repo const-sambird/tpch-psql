@@ -51,8 +51,8 @@ vm_count = 0
 #for trial in range(params.trials):
 trial = 0
 # Node index-tuner
-node_index_tuner = request.RawPC('benchmarker-' + str(trial + 1))
-node_index_tuner.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+qdina-PG0:bench'
+node_index_tuner = request.XenVM('benchmarker-' + str(trial + 1))
+node_index_tuner.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+qdina-PG0:tpch-psql'
 node_index_tuner.hardware_type = 'c6620'
 node_index_tuner.ram = 4096
 iface0 = node_index_tuner.addInterface('interface-' + str(trial + 1), pg.IPv4Address('192.168.0.' + str(vm_count + 64),'255.255.255.0'))
@@ -64,17 +64,17 @@ replicas = ''
 for i in range(params.nodes):
     if i > 0:
         replicas += '\n'
-    node = request.RawPC('replica-' + str(trial + 1) + '-' + str(i + 1))
+    node = request.XenVM('replica-' + str(trial + 1) + '-' + str(i + 1))
     node.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+qdina-PG0:pg_empty'
     iface = node.addInterface('interface-' + str(i + 1), pg.IPv4Address('192.168.0.' + str(vm_count + 64), '255.255.255.0'))
     ifaces.append(iface)
     replicas += str(i + 1) + ',192.168.0.' + str(vm_count + 64) + ',' + params.replica_str
     vm_count += 1
 
-node_index_tuner.addService(pg.Execute(shell='bash', command='cat >/opt/tpch-psql/replicas.csv <<EOL\n' + replicas + '\nEOL'))
-node_index_tuner.addService(pg.Execute(shell='bash', command='cat >/opt/tpch-psql/routes.csv <<EOL\n' + params.routes + '\nEOL'))
-node_index_tuner.addService(pg.Execute(shell='bash', command='cat >/opt/tpch-psql/index_config.csv <<EOL\n' + parsed_config + '\nEOL'))
-node_index_tuner.addService(pg.Execute(shell='bash', command='cp /proj/qdina-PG0/tpc-h /opt/tpch-psql'))
+node_index_tuner.addService(pg.Execute(shell='bash', command='sudo -u sambird cat >/opt/tpch-psql/replicas.csv <<EOL\n' + replicas + '\nEOL'))
+node_index_tuner.addService(pg.Execute(shell='bash', command='sudo -u sambird cat >/opt/tpch-psql/routes.csv <<EOL\n' + params.routes + '\nEOL'))
+node_index_tuner.addService(pg.Execute(shell='bash', command='sudo -u sambird cat >/opt/tpch-psql/index_config.csv <<EOL\n' + parsed_config + '\nEOL'))
+node_index_tuner.addService(pg.Execute(shell='bash', command='sudo -u sambird cp -r /proj/qdina-PG0/tpc-h /opt/tpch-psql'))
 
 # Link link-0
 link_0 = request.Link('link-' + str(trial + 1))

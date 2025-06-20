@@ -95,7 +95,7 @@ class Generator:
 
     def _compile_dbgen(self):
         logging.debug(f'attempting to compile TPC-H dbgen at {self.dbgen_path}')
-        subprocess.run(f'{self.dbgen_path}/make', cwd=self.dbgen_path)
+        subprocess.run('make', cwd=self.dbgen_path)
     
     def _create_table_data(self):
         logging.debug(f'creating table data for scale factor {self.scale_factor}')

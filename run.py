@@ -121,13 +121,15 @@ if __name__ == '__main__':
     routes = get_routes(args.routing_table)
 
     if args.query_streams is None:
-        num_query_streams = get_default_query_streams()
+        num_query_streams = get_default_query_streams(args.scale_factor)
     else:
         num_query_streams = args.query_streams
 
     base = os.path.dirname(os.path.realpath(__file__))
     data_dir = os.path.join(base, args.data_dir)
+    data_dir = os.path.normpath(data_dir)
     dbgen_dir = os.path.join(base, args.dbgen_dir)
+    dbgen_dir = os.path.normpath(dbgen_dir)
 
     generator = Generator(replicas, dbgen_dir, data_dir, args.scale_factor, num_query_streams + 1)
 
