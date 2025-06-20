@@ -99,7 +99,7 @@ class Generator:
     
     def _create_table_data(self):
         logging.debug(f'creating table data for scale factor {self.scale_factor}')
-        subprocess.run(f'{self.dbgen_path}/dbgen', '-s', self.scale_factor, '-vf', cwd=self.dbgen_path)
+        subprocess.run([f'{self.dbgen_path}/dbgen', '-s', self.scale_factor, '-vf'], cwd=self.dbgen_path)
 
         table_paths = glob.glob('*.tbl', root_dir=self.dbgen_path)
 
@@ -113,7 +113,7 @@ class Generator:
     
     def _create_refresh_data(self):
         logging.debug(f'creating refresh function data for scale factor {self.scale_factor}')
-        subprocess.run(f'{self.dbgen_path}/dbgen', '-s', self.scale_factor, '-vf', '-U', self.n_query_streams, cwd=self.dbgen_path)
+        subprocess.run([f'{self.dbgen_path}/dbgen', '-s', self.scale_factor, '-vf', '-U', self.n_query_streams], cwd=self.dbgen_path)
 
         update_paths = glob.glob('*.tbl.u*', root_dir=self.dbgen_path)
         delete_paths = glob.glob('delete.*', root_dir=self.dbgen_path)
@@ -126,7 +126,7 @@ class Generator:
 
         for i in range(1, 23):
             with open(f'{self.data_path}/queries/{i}.sql', 'w') as outfile:
-                subprocess.run(f'{self.dbgen_path}/qgen', '-s', self.scale_factor,
+                subprocess.run([f'{self.dbgen_path}/qgen', '-s', self.scale_factor],
                                cwd=self.dbgen_path,
                                env=dict(os.environ, DSS_QUERY=f'{self.dbgen_path}/queries'),
                                stdout=outfile)
