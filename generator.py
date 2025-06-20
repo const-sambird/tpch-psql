@@ -31,7 +31,7 @@ class Generator:
         self.replicas = replicas
         self.dbgen_path = dbgen_path
         self.data_path = data_path
-        self.scale_factor = scale_factor
+        self.scale_factor = str(scale_factor)
         self.n_query_streams = n_query_streams
         self.dbname = replicas[0].dbname
     
@@ -104,22 +104,22 @@ class Generator:
         table_paths = glob.glob('*.tbl', root_dir=self.dbgen_path)
 
         for file in table_paths:
-            shutil.move(file, f'{self.data_path}/tables/{os.path.basename(file)}')
+            shutil.move(f'{self.dbgen_path}/{file}', f'{self.data_path}/tables/{os.path.basename(file)}')
 
         shutil.move(f'{self.dbgen_path}/dss.ddl', f'{self.data_path}/schema/dss.ddl')
 
         root_dir = os.path.dirname(os.path.realpath(__file__))
-        shutil.move(f'{root_dir}/schema_keys.sql', f'{self.data_path}/schema/schema_keys.sql')
+        shutil.copy(f'{root_dir}/schema_keys.sql', f'{self.data_path}/schema/schema_keys.sql')
     
     def _create_refresh_data(self):
         logging.debug(f'creating refresh function data for scale factor {self.scale_factor}')
-        subprocess.run([f'{self.dbgen_path}/dbgen', '-s', self.scale_factor, '-vf', '-U', self.n_query_streams], cwd=self.dbgen_path)
+        subprocess.run([f'{self.dbgen_path}/dbgen', '-s', self.scale_factor, '-vf', '-U', str(self.n_query_streams)], cwd=self.dbgen_path)
 
         update_paths = glob.glob('*.tbl.u*', root_dir=self.dbgen_path)
         delete_paths = glob.glob('delete.*', root_dir=self.dbgen_path)
 
         for file in update_paths.extend(delete_paths):
-            shutil.move(file, f'{self.data_path}/refresh/{os.path.basename(file)}')
+            shutil.move(f'{self.dbgen_path}/{file}', f'{self.data_path}/refresh/{os.path.basename(file)}')
 
     def _create_queries(self):
         logging.debug(f'creating TPC-H query data')
