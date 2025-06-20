@@ -1,6 +1,6 @@
 import argparse
 import logging
-import logging.config
+import os
 
 from benchmark import Benchmark
 from replica import Replica
@@ -85,7 +85,7 @@ def get_replicas(path: str):
 
 def get_index_config(path: str, num_replicas: int) -> list[tuple[str]]:
     indexes = []
-    for replica in range(replicas):
+    for replica in range(num_replicas):
         indexes.append([])
     
     with open(path, 'r') as infile:
@@ -125,7 +125,11 @@ if __name__ == '__main__':
     else:
         num_query_streams = args.query_streams
 
-    generator = Generator(replicas, args.dbgen_dir, args.data_dir, args.scale_factor, num_query_streams + 1)
+    base = os.path.dirname(os.path.realpath(__file__))
+    data_dir = os.path.join(base, args.data_dir)
+    dbgen_dir = os.path.join(base, args.dbgen_dir)
+
+    generator = Generator(replicas, dbgen_dir, data_dir, args.scale_factor, num_query_streams + 1)
 
     logging.info(f'generating TPC-H data, scale factor {args.scale_factor}')
     generator.generate()
