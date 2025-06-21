@@ -47,6 +47,7 @@ class Generator:
         self._create_directories()
         self._compile_dbgen()
         self._create_table_data()
+        self._format_table_data()
         self._create_refresh_data()
         self._create_queries()
 
@@ -106,7 +107,7 @@ class Generator:
         for file in table_paths:
             shutil.move(f'{self.dbgen_path}/{file}', f'{self.data_path}/tables/{os.path.basename(file)}')
 
-        shutil.move(f'{self.dbgen_path}/dss.ddl', f'{self.data_path}/schema/dss.ddl')
+        shutil.copy(f'{self.dbgen_path}/dss.ddl', f'{self.data_path}/schema/dss.ddl')
 
         root_dir = os.path.dirname(os.path.realpath(__file__))
         shutil.copy(f'{root_dir}/schema_keys.sql', f'{self.data_path}/schema/schema_keys.sql')
@@ -117,8 +118,9 @@ class Generator:
 
         update_paths = glob.glob('*.tbl.u*', root_dir=self.dbgen_path)
         delete_paths = glob.glob('delete.*', root_dir=self.dbgen_path)
+        update_paths.extend(delete_paths)
 
-        for file in update_paths.extend(delete_paths):
+        for file in update_paths:
             shutil.move(f'{self.dbgen_path}/{file}', f'{self.data_path}/refresh/{os.path.basename(file)}')
 
     def _create_queries(self):
@@ -157,16 +159,27 @@ class Generator:
                 with open(f'{self.data_path}/schema/schema_keys.sql', 'r') as infile:
                     cur.execute(infile.read())
     
+    def _format_table_data(self):
+        '''
+        The table data by default includes a trailing pipe (|) character
+        that must be removed for Postgres to process it correctly with the
+        `COPY FROM ... FORMAT CSV` command. We do that in-place here.
+        '''
+        logging.debug('correcting table data formats')
+        for table_file in glob.glob(f'*.tbl', root_dir=f'{self.data_path}/tables'):
+            logging.debug(table_file)
+            subprocess.run(['sed', '-i', 's/.$//', table_file], cwd=f'{self.data_path}/tables')
+    
     def _load_table_data(self, connections: list[Connection]):
         for table_file in glob.glob(f'{self.data_path}/tables/*.tbl'):
             table = os.path.basename(table_file).split('.')[0]
             logging.info(f'loading data into {table}')
-            for c in connections:
+            for num, c in enumerate(connections):
+                logging.debug(f'loading to replica {num}')
                 with c.conn().cursor() as cur:
-                    with cur.copy(f'COPY {table} FROM STDIN') as copy:
+                    with cur.copy(f'COPY {table} FROM STDIN (format csv, delimiter \'|\')') as copy:
                         with open(table_file, 'r') as input:
-                            for line in input:
-                                copy.write_row(line)
+                            copy.write(input.read())
 
     def _load_queries(self) -> list[str]:
         logging.info('reading queries')
@@ -198,11 +211,11 @@ class Generator:
 
                 orderkey = order.split('|')[0]
                 stream_order.append(orderkey)
-                stream_data[orderkey] = this_entry
+                stream_data[orderkey] = this_entry[:-1]
             
             for lineitem in lineitems:
                 orderkey = lineitem.split('|')[0]
-                stream_data[orderkey]['lineitems'].append(lineitem)
+                stream_data[orderkey]['lineitems'].append(lineitem[:-1])
             
             lineitems.close()
             orders.close()

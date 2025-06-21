@@ -54,7 +54,7 @@ trial = 0
 node_index_tuner = request.XenVM('benchmarker-' + str(trial + 1))
 node_index_tuner.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+qdina-PG0:tpch-psql'
 node_index_tuner.hardware_type = 'c6620'
-node_index_tuner.ram = 4096
+node_index_tuner.ram = 12288
 iface0 = node_index_tuner.addInterface('interface-' + str(trial + 1), pg.IPv4Address('192.168.0.' + str(vm_count + 64),'255.255.255.0'))
 vm_count += 1
 

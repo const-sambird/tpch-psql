@@ -17,6 +17,7 @@ def create_arguments():
     parser.add_argument('-t', '--routing-table', type=str, default='routes.csv', help='the path to the routing table')
     parser.add_argument('-q', '--query-streams', type=int, help='number of query streams to run (if omitted, minimum given in spec will be used)')
     parser.add_argument('-v', '--verbose', action='store_true', help='enable verbose log output')
+    parser.add_argument('-n', '--no-gen', action='store_true', help='skip the data generation step and proceed directly to loading the tables')
 
     return parser.parse_args()
 
@@ -133,8 +134,11 @@ if __name__ == '__main__':
 
     generator = Generator(replicas, dbgen_dir, data_dir, args.scale_factor, num_query_streams + 1)
 
-    logging.info(f'generating TPC-H data, scale factor {args.scale_factor}')
-    generator.generate()
+    if args.no_gen:
+        logging.info('skipping TPC-H data generation')
+    else:
+        logging.info(f'generating TPC-H data, scale factor {args.scale_factor}')
+        generator.generate()
 
     logging.info('loading TPC-H data')
     queries, rf1_data, rf2_data = generator.load()
