@@ -7,6 +7,8 @@ import logging
 from replica import Replica
 from connection import Connection
 
+TABLE_BLOCK_SIZE = 5_120_000
+
 class Generator:
     def __init__(self, replicas: list[Replica], dbgen_path: str, data_path: str, scale_factor: int, n_query_streams: int):
         '''
@@ -179,7 +181,8 @@ class Generator:
                 with c.conn().cursor() as cur:
                     with cur.copy(f'COPY {table} FROM STDIN (format csv, delimiter \'|\')') as copy:
                         with open(table_file, 'r') as input:
-                            copy.write(input.read())
+                            while data := input.read(TABLE_BLOCK_SIZE):
+                                copy.write(data)
 
     def _load_queries(self) -> list[str]:
         logging.info('reading queries')
