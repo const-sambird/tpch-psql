@@ -244,6 +244,6 @@ class Generator:
 
         for i in range(self.n_query_streams):
             with open(f'{self.data_path}/refresh/delete.{i + 1}', 'r') as infile:
-                rf2_data.append([orderkey[:-1] for orderkey in infile.readlines()]) # trim trailing pipe character
+                rf2_data.append([orderkey[:-2] for orderkey in infile.readlines()]) # trim trailing pipe character
         
         return rf2_data
