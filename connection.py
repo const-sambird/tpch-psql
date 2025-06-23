@@ -21,7 +21,7 @@ class Connection:
         :param replica: the database `Replica` we are connecting to
         '''
         self.replica = replica
-        self._connection = psycopg.connect(replica.connection_string)
+        self._connection = psycopg.connect(replica.connection_string, autocommit=True)
     
     def conn(self):
         if self._connection is not None:

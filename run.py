@@ -143,7 +143,7 @@ if __name__ == '__main__':
     logging.info('loading TPC-H data')
     queries, rf1_data, rf2_data = generator.load()
 
-    benchmark = Benchmark(queries, rf1_data, rf2_data, replicas, routes, config, num_query_streams)
+    benchmark = Benchmark(queries, rf1_data, rf2_data, replicas, routes, config, num_query_streams, args.scale_factor)
 
     benchmark.run_power_test()
     benchmark.run_throughput_test()

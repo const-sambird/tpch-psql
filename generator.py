@@ -214,7 +214,7 @@ class Generator:
 
                 orderkey = order.split('|')[0]
                 stream_order.append(orderkey)
-                stream_data[orderkey] = this_entry[:-1]
+                stream_data[orderkey] = this_entry
             
             for lineitem in lineitems:
                 orderkey = lineitem.split('|')[0]
