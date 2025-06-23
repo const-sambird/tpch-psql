@@ -57,7 +57,9 @@ class QueryStream:
         Run this query stream in THROUGHPUT TEST mode (don't execute the refresh functions -- they'll be run by a separate stream).
         '''
         self.mode = 'throughput'
+        self.start_time = time.time()
         self._run_query_set()
+        self.end_time = time.time()
         
         self._finalise()
     
