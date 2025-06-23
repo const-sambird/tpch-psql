@@ -66,7 +66,7 @@ class QueryStream:
         Run REFRESH STREAMS only.
         '''
         self.mode = 'refresh'
-        for i in self.num_refresh_pairs:
+        for i in range(self.num_refresh_pairs):
             self._run_refresh_function_1(i)
             self._run_refresh_function_2(i)
 
