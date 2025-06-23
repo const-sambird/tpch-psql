@@ -1,4 +1,5 @@
 import time
+import logging
 from connection import Connection
 from replica import Replica
 
@@ -25,23 +26,32 @@ class RefreshPair:
         queries = []
 
         for orderkey in rf2_data:
-            queries.append('DELETE FROM ORDERS WHERE O_ORDERKEY = %s' % orderkey)
             queries.append('DELETE FROM LINEITEM WHERE L_ORDERKEY = %s' % orderkey)
+            queries.append('DELETE FROM ORDERS WHERE O_ORDERKEY = %s' % orderkey)
         
         return queries
     
     def run_refresh_function_1(self, timer_queue):
-        connection = Connection(self.replica)
+        order_connection = Connection(self.replica)
+        order_cursor = order_connection.conn().cursor()
+        lineitem_connection = Connection(self.replica)
+        lineitem_cursor = lineitem_connection.conn().cursor()
         start_time = None
-        with connection.conn().cursor() as cur:
+        with lineitem_connection.conn().transaction():
+            # defer FK checking
+            lineitem_cursor.execute('SET CONSTRAINTS lineitem_l_orderkey_fkey DEFERRED')
             start_time = time.time()
-            for orderkey in self.rf1_data:
-                cur.execute(orderkey['order'])
-                for lineitem in orderkey['lineitems']:
-                    cur.execute(lineitem)
+            with order_cursor.copy('COPY orders FROM STDIN') as order_copy, lineitem_cursor.copy('COPY lineitem FROM STDIN') as lineitem_copy:
+                for orderkey in self.rf1_data:
+                    order_copy.write_row(orderkey['order'].split('|'))
+                    for lineitem in orderkey['lineitems']:
+                        lineitem_copy.write_row(lineitem.split('|'))
         end_time = time.time()
         timer_queue.put({'start': start_time, 'end': end_time})
-        connection.close()
+        order_cursor.close()
+        lineitem_cursor.close()
+        order_connection.close()
+        lineitem_connection.close()
     
     def run_refresh_function_2(self, timer_queue):
         connection = Connection(self.replica)

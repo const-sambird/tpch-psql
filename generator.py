@@ -36,6 +36,7 @@ class Generator:
         self.scale_factor = str(scale_factor)
         self.n_query_streams = n_query_streams
         self.dbname = replicas[0].dbname
+        self.root_dir = os.path.dirname(os.path.realpath(__file__))
     
     def generate(self):
         '''
@@ -47,6 +48,7 @@ class Generator:
         compiles dbgen (or recompiles it), and generates the data.
         '''
         self._create_directories()
+        self._move_query_templates()
         self._compile_dbgen()
         self._create_table_data()
         self._format_table_data()
@@ -110,9 +112,7 @@ class Generator:
             shutil.move(f'{self.dbgen_path}/{file}', f'{self.data_path}/tables/{os.path.basename(file)}')
 
         shutil.copy(f'{self.dbgen_path}/dss.ddl', f'{self.data_path}/schema/dss.ddl')
-
-        root_dir = os.path.dirname(os.path.realpath(__file__))
-        shutil.copy(f'{root_dir}/schema_keys.sql', f'{self.data_path}/schema/schema_keys.sql')
+        shutil.copy(f'{self.root_dir}/schema_keys.sql', f'{self.data_path}/schema/schema_keys.sql')
     
     def _create_refresh_data(self):
         logging.debug(f'creating refresh function data for scale factor {self.scale_factor}')
@@ -124,13 +124,23 @@ class Generator:
 
         for file in update_paths:
             shutil.move(f'{self.dbgen_path}/{file}', f'{self.data_path}/refresh/{os.path.basename(file)}')
+    
+    def _move_query_templates(self):
+        existing_templates = glob.glob(f'{self.dbgen_path}/queries/*.sql')
+        corrected_templates = glob.glob(f'{self.root_dir}/templates/*.sql')
+
+        for template in existing_templates:
+            os.remove(template)
+        
+        for template in corrected_templates:
+            shutil.copy(template, f'{self.dbgen_path}/queries')
 
     def _create_queries(self):
         logging.debug(f'creating TPC-H query data')
 
         for i in range(1, 23):
             with open(f'{self.data_path}/queries/{i}.sql', 'w') as outfile:
-                subprocess.run([f'{self.dbgen_path}/qgen', '-s', self.scale_factor],
+                subprocess.run([f'{self.dbgen_path}/qgen', str(i), '-s', self.scale_factor],
                                cwd=self.dbgen_path,
                                env=dict(os.environ, DSS_QUERY=f'{self.dbgen_path}/queries'),
                                stdout=outfile)
@@ -145,7 +155,7 @@ class Generator:
         for c in connections:
             with c.conn().cursor() as cur:
                 for table in tables:
-                    cur.execute(f'DROP TABLE IF EXISTS {table}')
+                    cur.execute(f'DROP TABLE IF EXISTS {table} CASCADE')
 
     def _create_schemas(self, connections: list[Connection]):
         logging.info('creating the schemas for tables')
@@ -208,7 +218,7 @@ class Generator:
 
             for order in orders:
                 this_entry = {
-                    'order': order,
+                    'order': order[:-2], # omits trailing | and newline character
                     'lineitems': []
                 }
 
@@ -218,7 +228,7 @@ class Generator:
             
             for lineitem in lineitems:
                 orderkey = lineitem.split('|')[0]
-                stream_data[orderkey]['lineitems'].append(lineitem[:-1])
+                stream_data[orderkey]['lineitems'].append(lineitem[:-2])
             
             lineitems.close()
             orders.close()

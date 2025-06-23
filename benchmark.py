@@ -16,14 +16,14 @@ class Benchmark:
         self.scale_factor = scale_factor
         self.timer_queue = Queue()
 
-        self.power_stream = QueryStream(0, replicas, queries, routes, QS_ORDER[0], rf1_data, rf2_data, self.timer_queue)
-        self.refresh_stream = QueryStream(n_query_streams + 1, replicas, queries, routes, [], rf1_data, rf2_data, self.timer_queue)
+        self.power_stream = QueryStream(0, replicas, queries, routes, QS_ORDER[0], rf1_data[0], rf2_data[0], self.timer_queue)
+        self.refresh_stream = QueryStream(n_query_streams + 1, replicas, queries, routes, [], rf1_data[-1], rf2_data[-1], self.timer_queue)
         self.throughput_streams = []
 
         for i in range(1, n_query_streams + 1):
             self.throughput_streams.append(QueryStream(i, replicas, queries, routes, QS_ORDER[i % 100], rf1_data, rf2_data, self.timer_queue))
 
-        self._create_indexes()
+        #self._create_indexes()
     
     def _create_indexes(self):
         logging.info('creating indexes!')

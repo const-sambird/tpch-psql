@@ -82,6 +82,7 @@ class QueryStream:
 
     
     def _run_refresh_function_1(self):
+        logging.debug(f'starting refresh function #1 in query stream {self.num}')
         processes = [Process(target=r.run_refresh_function_1, args=(self.refresh_time_queue,)) for r in self.refresh_pairs]
         [p.start() for p in processes]
         [p.join() for p in processes]
@@ -93,6 +94,7 @@ class QueryStream:
         self.refresh_times[0] = end_time - start_time
 
     def _run_refresh_function_2(self):
+        logging.debug(f'starting refresh function #2 in query stream {self.num}')
         processes = [Process(target=r.run_refresh_function_2, args=(self.refresh_time_queue,)) for r in self.refresh_pairs]
         [p.start() for p in processes]
         [p.join() for p in processes]
