@@ -16,7 +16,7 @@ class Benchmark:
         self.scale_factor = scale_factor
         self.timer_queue = Queue()
 
-        self.power_stream = QueryStream(0, replicas, queries, routes, QS_ORDER[0], [rf1_data[0]], [rf2_data[0]], n_query_streams, self.timer_queue)
+        self.power_stream = QueryStream(0, replicas, queries, routes, QS_ORDER[0], [rf1_data[0]], [rf2_data[0]], 1, self.timer_queue)
         self.refresh_stream = QueryStream(n_query_streams + 1, replicas, queries, routes, [], rf1_data[1:], rf2_data[1:], n_query_streams, self.timer_queue)
         self.throughput_streams = []
 
