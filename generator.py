@@ -55,24 +55,13 @@ class Generator:
         self._create_refresh_data()
         self._create_queries()
 
-    def load(self) -> tuple[list[str], list[list[dict[str, list[str]]]], list[list[str]]]:
+    def load_database(self):
         '''
-        Loads the data into the database, or memory, as appropriate.
+        Loads the data into the database.
 
         (1) Resets each database, creates the schemas, and loads the generated table data.
 
         (2) Creates the default primary key/foreign key constraints on those tables.
-        
-        (3) Loads the query text to be executed.
-
-        (4) Loads the refresh pairs and sets them up for execution.
-
-        The rf*_data objects are lists, one for each refresh pair. The data structuring is a bit horrific,
-        but we need to serialise it to pass them to the spawned subprocesses.
-
-        :returns queries: the 22 generated queries to be executed according to the stream order given in the specification
-        :returns rf1_data: the data for the first refresh function: a dict with a new ORDER and a list of new LINEITEMs
-        :returns rf2_data: the data for the second refresh function: a list of orderkeys to delete from ORDERS and LINEITEM
         '''
         connections = [Connection(replica) for replica in self.replicas]
         tables = []
@@ -89,6 +78,21 @@ class Generator:
         for c in connections:
             c.close()
 
+    def read_data(self) -> tuple[list[str], list[list[dict[str, list[str]]]], list[list[str]]]:
+        '''
+        Loads the query and refresh data into memory.
+
+        (1) Loads the query text to be executed.
+
+        (2) Loads the refresh pairs and sets them up for execution.
+
+        The rf*_data objects are lists, one for each refresh pair. The data structuring is a bit horrific,
+        but we need to serialise it to pass them to the spawned subprocesses.
+
+        :returns queries: the 22 generated queries to be executed according to the stream order given in the specification
+        :returns rf1_data: the data for the first refresh function: a dict with a new ORDER and a list of new LINEITEMs
+        :returns rf2_data: the data for the second refresh function: a list of orderkeys to delete from ORDERS and LINEITEM
+        '''
         return self._load_queries(), self._load_rf1_data(), self._load_rf2_data()
     
     def _create_directories(self):
@@ -177,7 +181,7 @@ class Generator:
         that must be removed for Postgres to process it correctly with the
         `COPY FROM ... FORMAT CSV` command. We do that in-place here.
         '''
-        logging.debug('correcting table data formats')
+        logging.info('correcting table data CSV format for postgres...')
         for table_file in glob.glob(f'*.tbl', root_dir=f'{self.data_path}/tables'):
             logging.debug(table_file)
             subprocess.run(['sed', '-i', 's/.$//', table_file], cwd=f'{self.data_path}/tables')

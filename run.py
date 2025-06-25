@@ -17,7 +17,8 @@ def create_arguments():
     parser.add_argument('-t', '--routing-table', type=str, default='routes.csv', help='the path to the routing table')
     parser.add_argument('-q', '--query-streams', type=int, help='number of query streams to run (if omitted, minimum given in spec will be used)')
     parser.add_argument('-v', '--verbose', action='store_true', help='enable verbose log output')
-    parser.add_argument('-n', '--no-gen', action='store_true', help='skip the data generation step and proceed directly to loading the tables')
+    
+    parser.add_argument('phase', choices=['generate', 'load', 'run', 'all'], nargs='+', help='which phases of the benchmark should be run? if all is present, run all.')
 
     return parser.parse_args()
 
@@ -117,6 +118,11 @@ if __name__ == '__main__':
     else:
         logging.getLogger().setLevel(logging.INFO)
     
+    PHASES_TO_RUN = args.phase
+
+    if 'all' in args.phase:
+        PHASES_TO_RUN = ['generate', 'load', 'run']
+    
     replicas = get_replicas(args.replicas)
     config = get_index_config(args.index_config, len(replicas))
     routes = get_routes(args.routing_table)
@@ -134,28 +140,33 @@ if __name__ == '__main__':
 
     generator = Generator(replicas, dbgen_dir, data_dir, args.scale_factor, num_query_streams + 1)
 
-    if args.no_gen:
-        logging.info('skipping TPC-H data generation')
-    else:
+    if 'generate' in PHASES_TO_RUN:
         logging.info(f'generating TPC-H data, scale factor {args.scale_factor}')
         generator.generate()
+    else:
+        logging.info('skipping TPC-H data generation')
 
-    logging.info('loading TPC-H data')
-    queries, rf1_data, rf2_data = generator.load()
+    if 'load' in PHASES_TO_RUN:
+        logging.info('loading TPC-H data')
+        generator.load_database()
+    else:
+        logging.info('skipping TPC-H database load. it must already be present in the database!')
 
-    benchmark = Benchmark(queries, rf1_data, rf2_data, replicas, routes, config, num_query_streams, args.scale_factor)
+    if 'run' in PHASES_TO_RUN:
+        queries, rf1_data, rf2_data = generator.read_data()
+        benchmark = Benchmark(queries, rf1_data, rf2_data, replicas, routes, config, num_query_streams, args.scale_factor)
 
-    benchmark.run_power_test()
-    benchmark.run_throughput_test()
+        benchmark.run_power_test()
+        benchmark.run_throughput_test()
 
-    qphh, power, throughput = benchmark.get_results()
+        qphh, power, throughput = benchmark.get_results()
 
-    logging.info('=' * 30)
-    logging.info('TPC-H Performance Benchmark Results')
-    logging.info('')
-    logging.info(f'Power@Size       = {round(power, 3)}')
-    logging.info(f'Throughput@Size  = {round(throughput, 3)}')
-    logging.info(f'QphH@Size        = {round(qphh, 3)}')
-    logging.info('')
-    logging.info(f'Scale factor: {args.scale_factor}')
-    logging.info('=' * 30)
+        logging.info('=' * 30)
+        logging.info('TPC-H Performance Benchmark Results')
+        logging.info('')
+        logging.info(f'Power@Size       = {round(power, 3)}')
+        logging.info(f'Throughput@Size  = {round(throughput, 3)}')
+        logging.info(f'QphH@Size        = {round(qphh, 3)}')
+        logging.info('')
+        logging.info(f'Scale factor: {args.scale_factor}')
+        logging.info('=' * 30)
