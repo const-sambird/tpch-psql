@@ -202,8 +202,8 @@ class Generator:
         logging.info('reading queries')
         queries = []
 
-        for query_file in glob.glob(f'{self.data_path}/queries/*.sql'):
-            with open(query_file, 'r') as infile:
+        for i in range(1, 23):
+            with open(f'{self.data_path}/queries/{i}.sql', 'r') as infile:
                 queries.append(infile.read())
         
         return queries
