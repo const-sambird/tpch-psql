@@ -144,7 +144,7 @@ class Generator:
 
         for i in range(1, 23):
             with open(f'{self.data_path}/queries/{i}.sql', 'w') as outfile:
-                subprocess.run([f'{self.dbgen_path}/qgen', str(i), '-s', self.scale_factor],
+                subprocess.run([f'{self.dbgen_path}/qgen', '-s', self.scale_factor, str(i)],
                                cwd=self.dbgen_path,
                                env=dict(os.environ, DSS_QUERY=f'{self.dbgen_path}/queries'),
                                stdout=outfile)
