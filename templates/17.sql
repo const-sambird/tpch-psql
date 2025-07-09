@@ -15,5 +15,4 @@ where
 	and agg_partkey = l_partkey
 	and p_brand = ':1'
 	and p_container = ':2'
-	and l_quantity < avg_quantity
-LIMIT 1;
+	and l_quantity < avg_quantity;
