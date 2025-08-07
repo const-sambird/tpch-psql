@@ -50,7 +50,7 @@ class QueryStream:
         self._run_query_set()
         self._run_refresh_function_2(0)
 
-        for i, time in self.query_times:
+        for i, time in enumerate(self.query_times):
             logging.debug(f'Power:Q{i + 1} : {round(time, 2)}s')
 
         self._finalise()
